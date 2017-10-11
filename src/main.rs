@@ -60,27 +60,22 @@ fn a_star(mat: &[[i32; WIDTH]; HEIGHT], start: (usize, usize), finish: (usize, u
 			return Some(final_path);
 		}
 		
-		match opened.iter().position(|&x| x == current) {
-        	Some(n) => {opened.remove(n); ()},
-        	None => (),
+		if let Some(n) = opened.iter().position(|&x| x == current) {
+			opened.remove(n);
 		}
 		
-		match closed.iter().position(|&x| x == current) {
-        	Some(_) => (),
-        	None => closed.push(current),
+		if let None = closed.iter().position(|&x| x == current) {
+			closed.push(current);
 		}
-		
 		
 		let neighbors = get_neighbor(mat, current.0, current.1);
 		for n in neighbors.iter() {
-			match closed.iter().position(|x| x == n) {
-				Some(_) => continue,
-				None => (),
+			if let Some(_) = closed.iter().position(|x| x == n) {
+				continue;
 			}
 			
-			match opened.iter().position(|x| x == n) {
-				Some(_) => (),
-				None => opened.push(n.clone()),
+			if let None = opened.iter().position(|x| x == n) {
+				opened.push(n.clone());
 			}
 			
 			let tgscore: usize = gscore.get(&current).unwrap() + 1;
