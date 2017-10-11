@@ -13,7 +13,7 @@ fn main() {
     let mut adjmat: [[i32; WIDTH]; HEIGHT] = [[0; WIDTH]; HEIGHT];
     random_wall(&mut adjmat, NBWALL);
     
-    pretty_print_adjmat(&adjmat);
+    print!("{}", pretty_print_adjmat(&adjmat));
     let path = a_star(&adjmat, (0,0), (WIDTH-1,HEIGHT-1));
     if path.is_none() {
     	println!("No path possible.");
@@ -21,7 +21,7 @@ fn main() {
 		for &(x, y) in path.unwrap().iter() {
 			adjmat[y][x] = 2;
 		}
-		pretty_print_adjmat(&adjmat);
+		print!("{}", pretty_print_adjmat(&adjmat));
     }
 }
 
@@ -94,7 +94,7 @@ fn a_star(mat: &[[i32; WIDTH]; HEIGHT], start: (usize, usize), finish: (usize, u
 }
 
 // Print the adjacence matrix of the graph like a maze.
-fn pretty_print_adjmat(mat: &[[i32; WIDTH]; HEIGHT]) {
+fn pretty_print_adjmat(mat: &[[i32; WIDTH]; HEIGHT]) -> String {
 	let mut s = String::with_capacity((WIDTH+2) * (HEIGHT+2));
 	for _ in 0..(WIDTH+2) {s.push('#');}
 	s.push('\n');
@@ -109,7 +109,7 @@ fn pretty_print_adjmat(mat: &[[i32; WIDTH]; HEIGHT]) {
 	for _ in 0..(WIDTH+2) {s.push('#');}
 	s.push('\n');
 	
-	print!("{}", s);
+	s
 }
 
 // Create random "wall" in the "maze" (disconnect some node from their neighbor).
