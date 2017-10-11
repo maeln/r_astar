@@ -79,7 +79,7 @@ fn a_star(mat: &[[i32; WIDTH]; HEIGHT], start: (usize, usize), finish: (usize, u
 			}
 			
 			let tgscore: usize = gscore.get(&current).unwrap() + 1;
-			if gscore.contains_key(n) && tgscore >= *gscore.get(n).unwrap() {
+			if gscore.contains_key(n) && &tgscore >= gscore.get(n).unwrap() {
 				continue;
 			}
 			
