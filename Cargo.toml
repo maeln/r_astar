@@ -1,0 +1,7 @@
+[package]
+name = "astar"
+version = "0.1.0"
+authors = ["maeln"]
+
+[dependencies]
+rand = "0.3"
