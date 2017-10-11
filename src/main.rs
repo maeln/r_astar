@@ -95,18 +95,21 @@ fn a_star(mat: &[[i32; WIDTH]; HEIGHT], start: (usize, usize), finish: (usize, u
 
 // Print the adjacence matrix of the graph like a maze.
 fn pretty_print_adjmat(mat: &[[i32; WIDTH]; HEIGHT]) {
-	for _ in 0..(WIDTH+2) {print!("#");}
-	print!("\n");
+	let mut s = String::with_capacity((WIDTH+2) * (HEIGHT+2));
+	for _ in 0..(WIDTH+2) {s.push('#');}
+	s.push('\n');
 	for y in 0..HEIGHT {
-		print!("#");
+		s.push('#');
 		for x in 0..WIDTH {
-			print!("{}", if mat[y][x] == 0 {' '} else if mat[y][x] == 2 {'.'} else {'#'});
+			s.push(if mat[y][x] == 0 {' '} else if mat[y][x] == 2 {'.'} else {'#'});
 		}
-		print!("#");
-		print!("\n");
+		s.push('#');
+		s.push('\n');
 	}
-	for _ in 0..(WIDTH+2) {print!("#");}
-	print!("\n");
+	for _ in 0..(WIDTH+2) {s.push('#');}
+	s.push('\n');
+	
+	print!("{}", s);
 }
 
 // Create random "wall" in the "maze" (disconnect some node from their neighbor).
