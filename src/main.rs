@@ -2,8 +2,11 @@
 
 extern crate rand;
 
+mod maze;
+
 use rand::Rng;
 use std::collections::HashMap;
+use maze::Maze;
 
 const WIDTH: usize = 32;
 const HEIGHT: usize = 16;
@@ -23,6 +26,8 @@ fn main() {
 		}
 		print!("{}", pretty_print_adjmat(&adjmat));
     }
+    
+    println!("{}", Maze::depth_first_gen(4, 4));
 }
 
 // Since we can't go in diagonal direction, manhattant distance is a good heuristic for A*.
