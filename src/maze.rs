@@ -1,60 +1,68 @@
 // Maze generation.
 
 extern crate rand;
-
-use std::collections::HashSet;
 use rand::Rng;
-use std::fmt;
 
-#[derive(Clone)]
-#[derive(Hash)]
-#[derive(Eq)]
-pub struct Point {
-	x: usize,
-	y: usize,
+#[derive(Debug, Hash, PartialEq, Eq)]
+enum Dir {
+	N, S, E, W,
 }
 
-impl Point {
-	pub fn new(x: usize, y: usize) -> Point {
-		Point { x, y }
+impl Dir {
+	fn rand() -> Dir {
+		match rand::thread_rng().gen_range(0, 4) {
+			0 => Dir::N,
+			1 => Dir::S,
+			2 => Dir::E,
+			3 => Dir::W,
+			_ => Dir::N,
+		}
 	}
 	
-	pub fn rand(xrange: usize, yrange: usize) -> Point {
-		Point { x: rand::thread_rng().gen_range(0, xrange), y: rand::thread_rng().gen_range(0, yrange)}
-	}
-	
-	pub fn dist(&self, p: Point) -> f64 {
-		(((p.x as isize - self.x as isize).pow(2) + (p.y as isize - self.y as isize).pow(2)) as f64).sqrt()
-	}
-	
-	pub fn manhattan(&self, p: Point) -> usize {
-		((p.x as isize - self.x as isize).abs() + (p.y as isize - self.y as isize).abs()) as usize
+	fn opposite(&self) -> Dir {
+		match self {
+			&Dir::N => Dir::S,
+			&Dir::S => Dir::N,
+			&Dir::E => Dir::W,
+			&Dir::W => Dir::E,
+		}
 	}
 }
 
-impl fmt::Display for Point {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({};{})", self.x, self.y)
+#[derive(Debug, Hash, Eq)]
+pub struct Cell {
+	filled: bool,
+	walls: Vec<Dir>,
+}
+
+impl Cell {
+	fn new() -> Cell {
+		Cell { filled: false, walls: vec![Dir::N, Dir::S, Dir::E, Dir::W], }
+	}
+}
+
+impl PartialEq for Cell {
+	fn eq(&self, other: &Cell) -> bool {
+        self.filled == other.filled &&
+        self.walls.contains(&Dir::N) == other.walls.contains(&Dir::N) &&
+        self.walls.contains(&Dir::S) == other.walls.contains(&Dir::S) &&
+        self.walls.contains(&Dir::E) == other.walls.contains(&Dir::E) &&
+        self.walls.contains(&Dir::W) == other.walls.contains(&Dir::W)  
     }
 }
 
-impl PartialEq for Point {
-    fn eq(&self, other: &Point) -> bool {
-        (self.x == other.x) && (self.y == other.y)
-    }
-}
-
+#[derive(Debug, Hash, PartialEq)]
 pub struct Maze {
-	map: Vec<Vec<u8>>,
+	map: Vec<Vec<Cell>>,
 	width: usize,
 	height: usize,
-	entry: Point,
-	end: Point,
+	entry: (usize, usize),
+	end: (usize, usize),
 }
 
 impl Maze {
-	pub fn generate(width: usize, height: usize) -> Maze {
-		let mut map: Vec<Vec<u8>> = Vec::with_capacity(width);
+	pub fn new(width: usize, height: usize) -> Maze {
+		let mut map: Vec<Vec<Cell>> = Vec::with_capacity(width);
 		for i in 0..width {
 			map.insert(i, Vec::with_capacity(height));
 		}
@@ -62,142 +70,54 @@ impl Maze {
 		// There is probably a better way to initialize the maze with 1, but that will do for now
 		for x in 0..width {
 			for y in 0..height {
-				map[x].insert(y, 1);
+				map[x].insert(y, Cell::new());
 			}
 		}
 		
-		// Generating the maze.
-		let mut walls: Vec<Point> = Vec::new();
-		let start = Point::rand(width, height);
-		map[start.x][start.y] = 0;
-		for w in get_walls(&map, &start).iter() {
-			walls.push(w.clone());
+		Maze { map: map, width: width, height: height, entry: (0, 0), end: (0, 0) }
+	}
+	
+	pub fn generate(&mut self, start: (usize, usize)) {
+		let mut dir: Vec<Dir> = vec![];
+		if start.0 > 0 {
+			dir.push(Dir::W);
+		}
+		if start.0 < (self.width-1) {
+			dir.push(Dir::E);
+		}
+		if start.1 > 0 {
+			dir.push(Dir::N);
+		}
+		if start.1 < (self.height-1) {
+			dir.push(Dir::S);
 		}
 		
-		while !walls.is_empty() {
-			let choice = walls.pop().unwrap();
-			let neighwall = get_walls(&map, &choice);
+		rand::thread_rng().shuffle(&mut dir);
+		for d in &dir {
+			let mut x = 0;
+			let mut y = 0;
 			
-			if get_neighbors(&map, &choice).len() < 2 {
-				map[choice.x][choice.y] = 0;
-				for w in neighwall.iter() {
-					if !walls.contains(w) {
-						walls.push(w.clone());
-					}
+			match d {
+				&Dir::N => {y=start.1-1;},
+				&Dir::S => {y=start.1+1;},
+				&Dir::E => {x=start.0+1;},
+				&Dir::W => {x=start.0-1;},
+			}
+			
+			if (x, y) != start && !self.map[x][y].filled {
+				println!("{:?}", (d, x, y));
+			
+				if let Some(n) = self.map[start.0][start.1].walls.iter().position(|x| x == d) {
+					self.map[start.0][start.1].walls.remove(n);
 				}
-			}
+				if let Some(n) = self.map[x][y].walls.iter().position(|x| x == &d.opposite()) {
+					self.map[x][y].walls.remove(n);
+				}
+				self.map[x][y].filled = true;
+				self.map[start.0][start.1].filled = true;
+				self.generate((x, y));
+			}		
 		}
-		
-		Maze { map: map, width: width, height: height, entry: Point::new(0, 0), end: Point::new(0, 0) }
 	}
-	
-	pub fn neighbors(&self, p: Point) -> Vec<Point> {
-		let mut neigh = Vec::with_capacity(4);
-		
-		if p.x+1 < self.width && self.map[p.x+1][p.y] == 0 {
-			neigh.push( Point::new(p.x+1, p.y) );
-		}
-	
-		if p.y+1 < self.height && self.map[p.x][p.y+1] == 0 {
-			neigh.push( Point::new(p.x, p.y+1) );
-		}
-	
-		if p.x > 0 && self.map[p.x-1][p.y] == 0 {
-			neigh.push( Point::new(p.x-1, p.y) );
-		}
-	
-		if p.y > 0 && self.map[p.x][p.y-1] == 0 {
-			neigh.push( Point::new(p.x, p.y-1) );
-		}
-		
-		neigh
-	}
-	
-	pub fn walls(&self, p: Point) -> Vec<Point> {
-		let mut w = Vec::with_capacity(4);
-		
-		if p.x+1 < self.width && self.map[p.x+1][p.y] == 1 {
-			w.push( Point::new(p.x+1, p.y) );
-		}
-	
-		if p.y+1 < self.height && self.map[p.x][p.y+1] == 1 {
-			w.push( Point::new(p.x, p.y+1) );
-		}
-	
-		if p.x > 0 && self.map[p.x-1][p.y] == 1 {
-			w.push( Point::new(p.x-1, p.y) );
-		}
-	
-		if p.y > 0 && self.map[p.x][p.y-1] == 1 {
-			w.push( Point::new(p.x, p.y-1) );
-		}
-		
-		w
-	}
-}
-
-fn get_walls(map: &Vec<Vec<u8>>, p: &Point) -> Vec<Point> {
-		let mut w = Vec::with_capacity(4);
-		
-		if p.x+1 < map.len() && map[p.x+1][p.y] == 1 {
-			w.push( Point::new(p.x+1, p.y) );
-		}
-	
-		if p.y+1 < map[0].len() && map[p.x][p.y+1] == 1 {
-			w.push( Point::new(p.x, p.y+1) );
-		}
-	
-		if p.x > 0 && map[p.x-1][p.y] == 1 {
-			w.push( Point::new(p.x-1, p.y) );
-		}
-	
-		if p.y > 0 && map[p.x][p.y-1] == 1 {
-			w.push( Point::new(p.x, p.y-1) );
-		}
-		
-		w
-}
-
-fn get_neighbors(map: &Vec<Vec<u8>>, p: &Point) -> Vec<Point> {
-		let mut w = Vec::with_capacity(4);
-		
-		if p.x+1 < map.len() && map[p.x+1][p.y] == 0 {
-			w.push( Point::new(p.x+1, p.y) );
-		}
-	
-		if p.y+1 < map[0].len() && map[p.x][p.y+1] == 0 {
-			w.push( Point::new(p.x, p.y+1) );
-		}
-	
-		if p.x > 0 && map[p.x-1][p.y] == 0 {
-			w.push( Point::new(p.x-1, p.y) );
-		}
-	
-		if p.y > 0 && map[p.x][p.y-1] == 0 {
-			w.push( Point::new(p.x, p.y-1) );
-		}
-		
-		w
-}
-
-//Pretty printing for the maze.
-impl fmt::Display for Maze {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    	let mut s = String::with_capacity((self.width+2) * (self.height+2));
-		for _ in 0..(self.width+2) {s.push('#');}
-		s.push('\n');
-		for y in 0..self.height {
-			s.push('#');
-			for x in 0..self.width {
-				s.push(if self.map[x][y] == 0 {' '} else if self.map[x][y] == 2 {'.'} else {'#'});
-			}
-			s.push('#');
-			s.push('\n');
-		}
-		for _ in 0..(self.width+2) {s.push('#');}
-		s.push('\n');
-		
-        write!(f, "{}", s)
-    }
 }
 
