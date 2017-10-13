@@ -27,7 +27,7 @@ fn main() {
 		print!("{}", pretty_print_adjmat(&adjmat));
     }
     
-    println!("{}", Maze::depth_first_gen(4, 4));
+    println!("{}", Maze::generate(32, 16));
 }
 
 // Since we can't go in diagonal direction, manhattant distance is a good heuristic for A*.
