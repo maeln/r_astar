@@ -85,6 +85,7 @@ impl Maze {
 	}
 	
 	pub fn generate(&mut self, start: (usize, usize)) {
+		self.map[start.0][start.1].filled = true;
 		let mut dir: Vec<Dir> = vec![];
 		if start.0 > 0 {
 			dir.push(Dir::W);
@@ -100,18 +101,17 @@ impl Maze {
 		}
 		
 		rand::thread_rng().shuffle(&mut dir);
-		for d in &dir {
-			let mut x = 0;
-			let mut y = 0;
+		for d in dir.iter() {
+			let mut x = start.0;
+			let mut y = start.1;
 			
 			match d {
-				&Dir::N => {y=start.1-1;},
-				&Dir::S => {y=start.1+1;},
-				&Dir::E => {x=start.0+1;},
-				&Dir::W => {x=start.0-1;},
+				&Dir::N => {y-=1;},
+				&Dir::S => {y+=1;},
+				&Dir::E => {x+=1;},
+				&Dir::W => {x-=1;},
 			}
-			
-			if (x, y) != start && !self.map[x][y].filled {			
+			if !self.map[x][y].filled {		
 				if let Some(n) = self.map[start.0][start.1].walls.iter().position(|x| x == d) {
 					self.map[start.0][start.1].walls.remove(n);
 				}
@@ -119,7 +119,6 @@ impl Maze {
 					self.map[x][y].walls.remove(n);
 				}
 				self.map[x][y].filled = true;
-				self.map[start.0][start.1].filled = true;
 				self.generate((x, y));
 			}		
 		}
