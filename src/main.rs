@@ -29,7 +29,7 @@ fn main() {
     
     let mut m = Maze::new(6, 6);
     m.generate((0,0));
-    println!("{:?}", m);
+    m.to_svg_file("/home/maeln/test.svg");
 }
 
 // Since we can't go in diagonal direction, manhattant distance is a good heuristic for A*.

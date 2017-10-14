@@ -5,4 +5,4 @@ authors = ["maeln"]
 
 [dependencies]
 rand = "0.3"
-svg = "0.5"
+

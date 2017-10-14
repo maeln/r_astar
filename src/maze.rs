@@ -3,6 +3,9 @@
 extern crate rand;
 use rand::Rng;
 
+use std::fs::File;
+use std::io::prelude::*;
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 enum Dir {
 	N, S, E, W,
@@ -60,6 +63,10 @@ pub struct Maze {
 	end: (usize, usize),
 }
 
+const WALL_SIZE: usize = 10;
+const WALL_STROKE: usize = 1;
+const SIZE: usize = 10;
+
 impl Maze {
 	pub fn new(width: usize, height: usize) -> Maze {
 		let mut map: Vec<Vec<Cell>> = Vec::with_capacity(width);
@@ -104,9 +111,7 @@ impl Maze {
 				&Dir::W => {x=start.0-1;},
 			}
 			
-			if (x, y) != start && !self.map[x][y].filled {
-				println!("{:?}", (d, x, y));
-			
+			if (x, y) != start && !self.map[x][y].filled {			
 				if let Some(n) = self.map[start.0][start.1].walls.iter().position(|x| x == d) {
 					self.map[start.0][start.1].walls.remove(n);
 				}
@@ -117,6 +122,41 @@ impl Maze {
 				self.map[start.0][start.1].filled = true;
 				self.generate((x, y));
 			}		
+		}
+	}
+	
+	pub fn to_svg_file(&self, path: &str) {
+		if let Ok(mut f) = File::create(path) {
+			f.write_all(self.to_svg().as_bytes());
+		}
+	}
+	
+	pub fn to_svg(&self) -> String {
+		let mut svg = String::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n");
+		svg.push_str("<svg>");
+		for x in 0..self.width {
+			for y in 0..self.height {
+				Maze::draw_cell(x, y, &self.map[x][y], &mut svg);
+			}
+		}
+		svg.push_str("</svg>");
+		svg
+	}
+	
+	fn draw_cell(x: usize, y: usize, c: &Cell, s: &mut String) {
+		s.push_str(&format!("<g stroke='{}' stroke-width='{}'>", "black", WALL_STROKE));
+		for d in c.walls.iter() {
+			s.push_str(&Maze::draw_wall(x, y, d));
+		}
+		s.push_str("</g>");
+	}
+	
+	fn draw_wall(x: usize, y:usize, d: &Dir) -> String {
+		match d {
+				&Dir::N => format!("<line x1='{}' y1='{}' x2='{}' y2='{}'/>", x*SIZE, y*SIZE, x*SIZE+WALL_SIZE, y*SIZE),
+				&Dir::S => format!("<line x1='{}' y1='{}' x2='{}' y2='{}'/>", x*SIZE, y*SIZE+WALL_SIZE, x*SIZE+WALL_SIZE, y*SIZE+WALL_SIZE),
+				&Dir::E => format!("<line x1='{}' y1='{}' x2='{}' y2='{}'/>", x*SIZE+WALL_SIZE, y*SIZE, x*SIZE+WALL_SIZE, y*SIZE+WALL_SIZE),
+				&Dir::W => format!("<line x1='{}' y1='{}' x2='{}' y2='{}'/>", x*SIZE, y*SIZE, x*SIZE, y*SIZE+WALL_SIZE),
 		}
 	}
 }
