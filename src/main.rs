@@ -27,9 +27,14 @@ fn main() {
 		print!("{}", pretty_print_adjmat(&adjmat));
     }
     
-    let mut m = Maze::new(32, 16);
+    let mut m = Maze::new(6, 6);
     m.generate((0,0));
-    m.to_svg_file("/home/maeln/test.svg");
+    m.to_svg_file("/home/maeln/test.svg", &Vec::new());
+    if let Some(n) = m.a_star((0,0), (5, 5)) {
+    	m.to_svg_file("/home/maeln/test_with_path.svg", &n);
+    } else {
+    	println!("No Path in maze.");
+    }
 }
 
 // Since we can't go in diagonal direction, manhattant distance is a good heuristic for A*.
