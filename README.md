@@ -7,6 +7,7 @@ The system is able to:
  * Find path in the Maze using A*
  * Output the maze and path as SVG
 
-Exemple output:
+## Exemple output:
+
 ![Solved maze](https://raw.githubusercontent.com/maeln/r_astar/master/exemple.png)
 
