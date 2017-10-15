@@ -209,7 +209,6 @@ impl Maze {
 			}
 		
 			let neighbors = self.neighbors(current.0, current.1);
-			println!("{:?}", neighbors);
 			for n in neighbors.iter() {
 				if let Some(_) = closed.iter().position(|x| x == n) {
 					continue;
