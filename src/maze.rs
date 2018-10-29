@@ -17,16 +17,6 @@ enum Dir {
 }
 
 impl Dir {
-	fn rand() -> Dir {
-		match rand::thread_rng().gen_range(0, 4) {
-			0 => Dir::N,
-			1 => Dir::S,
-			2 => Dir::E,
-			3 => Dir::W,
-			_ => Dir::N,
-		}
-	}
-
 	fn opposite(&self) -> Dir {
 		match self {
 			&Dir::N => Dir::S,
@@ -144,7 +134,12 @@ impl Maze {
 
 	pub fn to_svg_file(&self, path: &str, astar: &Vec<(usize, usize)>) {
 		if let Ok(mut f) = File::create(path) {
-			f.write_all(self.to_svg(astar).as_bytes());
+			match f.write_all(self.to_svg(astar).as_bytes()) {
+				Err(e) => {
+					panic!(format!("Error while saving the SVG: {}", e));
+				}
+				Ok(_) => println!("SVG saved."),
+			}
 		}
 	}
 
