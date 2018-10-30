@@ -57,6 +57,7 @@ pub struct Maze {
 	map: Vec<Vec<Cell>>,
 	width: usize,
 	height: usize,
+	trace: bool,
 }
 
 const WALL_SIZE: usize = 10;
@@ -64,7 +65,7 @@ const WALL_STROKE: usize = 1;
 const SIZE: usize = 10;
 
 impl Maze {
-	pub fn new(width: usize, height: usize) -> Maze {
+	pub fn new(width: usize, height: usize, trace: bool) -> Maze {
 		let mut map: Vec<Vec<Cell>> = Vec::with_capacity(width);
 		for i in 0..width {
 			map.insert(i, Vec::with_capacity(height));
@@ -81,10 +82,19 @@ impl Maze {
 			map: map,
 			width: width,
 			height: height,
+			trace: trace,
 		}
 	}
 
 	pub fn generate(&mut self, start: (usize, usize)) {
+		self.maze_iter(start, 0);
+	}
+
+	pub fn maze_iter(&mut self, start: (usize, usize), counter: u64) {
+		if self.trace {
+			self.to_svg_file(&format!("maze_{}.svg", counter), start, &Vec::new());
+		}
+
 		self.map[start.0][start.1].filled = true;
 		let mut dir: Vec<Dir> = vec![];
 		if start.0 > 0 {
@@ -119,6 +129,7 @@ impl Maze {
 					x -= 1;
 				}
 			}
+
 			if !self.map[x][y].filled {
 				if let Some(n) = self.map[start.0][start.1].walls.iter().position(|x| x == d) {
 					self.map[start.0][start.1].walls.remove(n);
@@ -127,14 +138,14 @@ impl Maze {
 					self.map[x][y].walls.remove(n);
 				}
 				self.map[x][y].filled = true;
-				self.generate((x, y));
+				self.maze_iter((x, y), counter + 1);
 			}
 		}
 	}
 
-	pub fn to_svg_file(&self, path: &str, astar: &Vec<(usize, usize)>) {
+	pub fn to_svg_file(&self, path: &str, current: (usize, usize), astar: &Vec<(usize, usize)>) {
 		if let Ok(mut f) = File::create(path) {
-			match f.write_all(self.to_svg(astar).as_bytes()) {
+			match f.write_all(self.to_svg(current, astar).as_bytes()) {
 				Err(e) => {
 					panic!(format!("Error while saving the SVG: {}", e));
 				}
@@ -143,7 +154,7 @@ impl Maze {
 		}
 	}
 
-	pub fn to_svg(&self, astar: &Vec<(usize, usize)>) -> String {
+	pub fn to_svg(&self, current: (usize, usize), astar: &Vec<(usize, usize)>) -> String {
 		let mut svg = String::from("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 		svg.push_str(&format!(
 			"<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"{}\" height=\"{}\">",
@@ -152,7 +163,7 @@ impl Maze {
 		));
 		for x in 0..self.width {
 			for y in 0..self.height {
-				Maze::draw_cell(x, y, &self.map[x][y], &mut svg);
+				Maze::draw_cell(self, (x, y), current, &self.map[x][y], &mut svg);
 			}
 		}
 		if !astar.is_empty() {
@@ -162,13 +173,28 @@ impl Maze {
 		svg
 	}
 
-	fn draw_cell(x: usize, y: usize, c: &Cell, s: &mut String) {
+	fn draw_cell(&self, pos: (usize, usize), current: (usize, usize), c: &Cell, s: &mut String) {
+		if self.trace && c.filled {
+			s.push_str(&format!(
+				"<rect x='{}' y ='{}' width='{}' height='{}' fill='{}' />",
+				pos.0 * SIZE,
+				pos.1 * SIZE,
+				WALL_SIZE,
+				WALL_SIZE,
+				if pos.0 == current.0 && pos.1 == current.1 {
+					"red"
+				} else {
+					"green"
+				}
+			));
+		}
+
 		s.push_str(&format!(
 			"<g stroke='{}' stroke-width='{}'>",
 			"black", WALL_STROKE
 		));
 		for d in c.walls.iter() {
-			s.push_str(&Maze::draw_wall(x, y, d));
+			s.push_str(&Maze::draw_wall(pos.0, pos.1, d));
 		}
 		s.push_str("</g>");
 	}

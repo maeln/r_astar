@@ -3,6 +3,11 @@ name = "astar"
 version = "0.1.0"
 authors = ["maeln"]
 
+[profile.release]
+debug = false
+lto = true
+opt-level = 3
+
 [dependencies]
 rand = "0.3"
-
+clap = "2.32"
