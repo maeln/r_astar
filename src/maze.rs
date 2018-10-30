@@ -16,6 +16,18 @@ enum Dir {
 	W,
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+pub struct Point {
+	x: usize,
+	y: usize,
+}
+
+impl Point {
+	pub fn new(x: usize, y: usize) -> Point {
+		Point { x: x, y: y }
+	}
+}
+
 impl Dir {
 	fn opposite(&self) -> Dir {
 		match self {
@@ -86,34 +98,34 @@ impl Maze {
 		}
 	}
 
-	pub fn generate(&mut self, start: (usize, usize)) {
+	pub fn generate(&mut self, start: Point) {
 		self.maze_iter(start, 0);
 	}
 
-	pub fn maze_iter(&mut self, start: (usize, usize), counter: u64) {
+	pub fn maze_iter(&mut self, start: Point, counter: u64) {
 		if self.trace {
 			self.to_svg_file(&format!("maze_{}.svg", counter), start, &Vec::new());
 		}
 
-		self.map[start.0][start.1].filled = true;
+		self.map[start.x][start.y].filled = true;
 		let mut dir: Vec<Dir> = vec![];
-		if start.0 > 0 {
+		if start.x > 0 {
 			dir.push(Dir::W);
 		}
-		if start.0 < (self.width - 1) {
+		if start.x < (self.width - 1) {
 			dir.push(Dir::E);
 		}
-		if start.1 > 0 {
+		if start.y > 0 {
 			dir.push(Dir::N);
 		}
-		if start.1 < (self.height - 1) {
+		if start.y < (self.height - 1) {
 			dir.push(Dir::S);
 		}
 
 		rand::thread_rng().shuffle(&mut dir);
 		for d in dir.iter() {
-			let mut x = start.0;
-			let mut y = start.1;
+			let mut x = start.x;
+			let mut y = start.y;
 
 			match d {
 				&Dir::N => {
@@ -131,19 +143,19 @@ impl Maze {
 			}
 
 			if !self.map[x][y].filled {
-				if let Some(n) = self.map[start.0][start.1].walls.iter().position(|x| x == d) {
-					self.map[start.0][start.1].walls.remove(n);
+				if let Some(n) = self.map[start.x][start.y].walls.iter().position(|x| x == d) {
+					self.map[start.x][start.y].walls.remove(n);
 				}
 				if let Some(n) = self.map[x][y].walls.iter().position(|x| x == &d.opposite()) {
 					self.map[x][y].walls.remove(n);
 				}
 				self.map[x][y].filled = true;
-				self.maze_iter((x, y), counter + 1);
+				self.maze_iter(Point::new(x, y), counter + 1);
 			}
 		}
 	}
 
-	pub fn to_svg_file(&self, path: &str, current: (usize, usize), astar: &Vec<(usize, usize)>) {
+	pub fn to_svg_file(&self, path: &str, current: Point, astar: &Vec<Point>) {
 		if let Ok(mut f) = File::create(path) {
 			match f.write_all(self.to_svg(current, astar).as_bytes()) {
 				Err(e) => {
@@ -154,7 +166,7 @@ impl Maze {
 		}
 	}
 
-	pub fn to_svg(&self, current: (usize, usize), astar: &Vec<(usize, usize)>) -> String {
+	pub fn to_svg(&self, current: Point, astar: &Vec<Point>) -> String {
 		let mut svg = String::from("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
 		svg.push_str(&format!(
 			"<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"{}\" height=\"{}\">",
@@ -163,7 +175,7 @@ impl Maze {
 		));
 		for x in 0..self.width {
 			for y in 0..self.height {
-				Maze::draw_cell(self, (x, y), current, &self.map[x][y], &mut svg);
+				Maze::draw_cell(self, Point::new(x, y), current, &self.map[x][y], &mut svg);
 			}
 		}
 		if !astar.is_empty() {
@@ -173,15 +185,15 @@ impl Maze {
 		svg
 	}
 
-	fn draw_cell(&self, pos: (usize, usize), current: (usize, usize), c: &Cell, s: &mut String) {
+	fn draw_cell(&self, pos: Point, current: Point, c: &Cell, s: &mut String) {
 		if self.trace && c.filled {
 			s.push_str(&format!(
 				"<rect x='{}' y ='{}' width='{}' height='{}' fill='{}' />",
-				pos.0 * SIZE,
-				pos.1 * SIZE,
+				pos.x * SIZE,
+				pos.y * SIZE,
 				WALL_SIZE,
 				WALL_SIZE,
-				if pos.0 == current.0 && pos.1 == current.1 {
+				if pos.x == current.x && pos.y == current.y {
 					"red"
 				} else {
 					"green"
@@ -194,7 +206,7 @@ impl Maze {
 			"black", WALL_STROKE
 		));
 		for d in c.walls.iter() {
-			s.push_str(&Maze::draw_wall(pos.0, pos.1, d));
+			s.push_str(&Maze::draw_wall(pos.x, pos.y, d));
 		}
 		s.push_str("</g>");
 	}
@@ -232,12 +244,12 @@ impl Maze {
 		}
 	}
 
-	fn draw_path(path: &Vec<(usize, usize)>) -> String {
+	fn draw_path(path: &Vec<Point>) -> String {
 		let mut s = String::from(format!(
 			"<polyline fill='none' stroke='green' stroke-width='{}' points='",
 			WALL_STROKE
 		));
-		for &(x, y) in path.iter() {
+		for Point { x, y } in path.iter() {
 			s.push_str(&format!(
 				"{},{} ",
 				x * SIZE + WALL_SIZE / 2,
@@ -248,30 +260,26 @@ impl Maze {
 		s
 	}
 
-	pub fn a_star(
-		&self,
-		start: (usize, usize),
-		finish: (usize, usize),
-	) -> Option<Vec<(usize, usize)>> {
-		let mut closed: Vec<(usize, usize)> = Vec::new();
-		let mut opened: Vec<(usize, usize)> = Vec::new();
+	pub fn a_star(&self, start: Point, finish: Point) -> Option<Vec<Point>> {
+		let mut closed: Vec<Point> = Vec::new();
+		let mut opened: Vec<Point> = Vec::new();
 		opened.push(start);
-		let mut from: HashMap<(usize, usize), (usize, usize)> = HashMap::new();
-		let mut gscore: HashMap<(usize, usize), usize> = HashMap::new();
+		let mut from: HashMap<Point, Point> = HashMap::new();
+		let mut gscore: HashMap<Point, usize> = HashMap::new();
 		gscore.insert(start, 0);
-		let mut fscore: HashMap<(usize, usize), usize> = HashMap::new();
+		let mut fscore: HashMap<Point, usize> = HashMap::new();
 		fscore.insert(start, Maze::manhattan(start, finish));
 
 		while !opened.is_empty() {
 			let mut current = start;
 			for node in opened.iter() {
 				if current == start || fscore.get(&current) > fscore.get(node) {
-					current = node.clone();
+					current = *node;
 				}
 			}
 
 			if current == finish {
-				let mut final_path: Vec<(usize, usize)> = Vec::new();
+				let mut final_path: Vec<Point> = Vec::new();
 				final_path.push(current);
 				while from.contains_key(&current) {
 					current = *from.get(&current).unwrap();
@@ -289,14 +297,14 @@ impl Maze {
 				closed.push(current);
 			}
 
-			let neighbors = self.neighbors(current.0, current.1);
+			let neighbors = self.neighbors(current);
 			for n in neighbors.iter() {
 				if let Some(_) = closed.iter().position(|x| x == n) {
 					continue;
 				}
 
 				if let None = opened.iter().position(|x| x == n) {
-					opened.push(n.clone());
+					opened.push(*n);
 				}
 
 				let tgscore: usize = gscore.get(&current).unwrap() + 1;
@@ -304,44 +312,45 @@ impl Maze {
 					continue;
 				}
 
-				from.insert(n.clone(), current);
-				gscore.insert(n.clone(), tgscore);
-				fscore.insert(n.clone(), tgscore + Maze::manhattan(n.clone(), finish));
+				from.insert(*n, current);
+				gscore.insert(*n, tgscore);
+				fscore.insert(*n, tgscore + Maze::manhattan(*n, finish));
 			}
 		}
 
 		None
 	}
 
-	fn manhattan(pa: (usize, usize), pb: (usize, usize)) -> usize {
-		((pb.0 as isize - pa.0 as isize).abs() + (pb.1 as isize - pa.1 as isize).abs()) as usize
+	fn manhattan(pa: Point, pb: Point) -> usize {
+		((pb.x as isize - pa.x as isize).abs() + (pb.y as isize - pa.y as isize).abs()) as usize
 	}
 
-	fn neighbors(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
-		let mut n: Vec<(usize, usize)> = Vec::with_capacity(4);
+	fn neighbors(&self, p: Point) -> Vec<Point> {
+		let Point { x, y } = p;
+		let mut n: Vec<Point> = Vec::with_capacity(4);
 		let c: &Cell = &self.map[x][y];
 
 		if let None = c.walls.iter().position(|x| x == &Dir::E) {
 			if x + 1 < self.width {
-				n.push((x + 1, y));
+				n.push(Point::new(x + 1, y));
 			}
 		}
 
 		if let None = c.walls.iter().position(|x| x == &Dir::S) {
 			if y + 1 < self.height {
-				n.push((x, y + 1));
+				n.push(Point::new(x, y + 1));
 			}
 		}
 
 		if let None = c.walls.iter().position(|x| x == &Dir::W) {
 			if x > 0 {
-				n.push((x - 1, y));
+				n.push(Point::new(x - 1, y));
 			}
 		}
 
 		if let None = c.walls.iter().position(|x| x == &Dir::N) {
 			if y > 0 {
-				n.push((x, y - 1));
+				n.push(Point::new(x, y - 1));
 			}
 		}
 

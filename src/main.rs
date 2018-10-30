@@ -6,6 +6,7 @@ extern crate rand;
 mod maze;
 
 use maze::Maze;
+use maze::Point;
 
 fn main() {
     let matches = App::new("R_A*")
@@ -39,10 +40,10 @@ fn main() {
     let step = matches.is_present("step");
 
     let mut m = Maze::new(width, height, step);
-    m.generate((0, 0));
-    m.to_svg_file("maze.svg", (0, 0), &Vec::new());
-    if let Some(n) = m.a_star((0, 0), (width - 1, height - 1)) {
-        m.to_svg_file("solved_maze.svg", (0, 0), &n);
+    m.generate(Point::new(0, 0));
+    m.to_svg_file("maze.svg", Point::new(0, 0), &Vec::new());
+    if let Some(n) = m.a_star(Point::new(0, 0), Point::new(width - 1, height - 1)) {
+        m.to_svg_file("solved_maze.svg", Point::new(0, 0), &n);
     } else {
         println!("No Path in maze.");
     }
