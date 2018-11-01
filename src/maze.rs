@@ -7,13 +7,25 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use std::collections::HashMap;
+use std::collections::LinkedList;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
-enum Dir {
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
+pub enum Dir {
 	N,
 	S,
 	E,
 	W,
+}
+
+impl Dir {
+	fn opposite(&self) -> Dir {
+		match self {
+			&Dir::N => Dir::S,
+			&Dir::S => Dir::N,
+			&Dir::E => Dir::W,
+			&Dir::W => Dir::E,
+		}
+	}
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
@@ -28,18 +40,7 @@ impl Point {
 	}
 }
 
-impl Dir {
-	fn opposite(&self) -> Dir {
-		match self {
-			&Dir::N => Dir::S,
-			&Dir::S => Dir::N,
-			&Dir::E => Dir::W,
-			&Dir::W => Dir::E,
-		}
-	}
-}
-
-#[derive(Debug, Hash, Eq)]
+#[derive(Debug, Hash, Eq, Clone)]
 pub struct Cell {
 	filled: bool,
 	walls: Vec<Dir>,
@@ -50,6 +51,12 @@ impl Cell {
 		Cell {
 			filled: false,
 			walls: vec![Dir::N, Dir::S, Dir::E, Dir::W],
+		}
+	}
+
+	pub fn remove_wall(&mut self, d: Dir) {
+		if let Some(n) = self.walls.iter().position(|x| x == &d) {
+			self.walls.remove(n);
 		}
 	}
 }
@@ -69,7 +76,7 @@ pub struct Maze {
 	map: Vec<Vec<Cell>>,
 	width: usize,
 	height: usize,
-	trace: bool,
+	pub trace: bool,
 }
 
 const WALL_SIZE: usize = 10;
@@ -99,60 +106,82 @@ impl Maze {
 	}
 
 	pub fn generate(&mut self, start: Point) {
-		self.maze_iter(start, 0);
+		self.maze_iter(start);
 	}
 
-	pub fn maze_iter(&mut self, start: Point, counter: u64) {
-		if self.trace {
-			self.to_svg_file(&format!("maze_{}.svg", counter), start, &Vec::new());
-		}
+	pub fn maze_iter(&mut self, start: Point) {
+		let mut stack: LinkedList<Point> = LinkedList::new();
+		stack.push_front(start);
 
-		self.map[start.x][start.y].filled = true;
-		let mut dir: Vec<Dir> = vec![];
-		if start.x > 0 {
-			dir.push(Dir::W);
-		}
-		if start.x < (self.width - 1) {
-			dir.push(Dir::E);
-		}
-		if start.y > 0 {
-			dir.push(Dir::N);
-		}
-		if start.y < (self.height - 1) {
-			dir.push(Dir::S);
-		}
+		let mut counter = 0;
+		while !stack.is_empty() {
+			let current = stack.pop_front().unwrap();
+			self.map[current.x][current.y].filled = true;
 
-		rand::thread_rng().shuffle(&mut dir);
-		for d in dir.iter() {
-			let mut x = start.x;
-			let mut y = start.y;
-
-			match d {
-				&Dir::N => {
-					y -= 1;
-				}
-				&Dir::S => {
-					y += 1;
-				}
-				&Dir::E => {
-					x += 1;
-				}
-				&Dir::W => {
-					x -= 1;
-				}
+			if self.trace {
+				self.to_svg_file(&format!("maze_{}.svg", counter), current, &Vec::new());
+				counter += 1;
 			}
 
-			if !self.map[x][y].filled {
-				if let Some(n) = self.map[start.x][start.y].walls.iter().position(|x| x == d) {
-					self.map[start.x][start.y].walls.remove(n);
-				}
-				if let Some(n) = self.map[x][y].walls.iter().position(|x| x == &d.opposite()) {
-					self.map[x][y].walls.remove(n);
-				}
-				self.map[x][y].filled = true;
-				self.maze_iter(Point::new(x, y), counter + 1);
+			let neighbors = self.unvisited_neighbor(current);
+
+			if !neighbors.is_empty() {
+				stack.push_front(current);
+				let p = rand::thread_rng().choose(&neighbors).unwrap();
+				self.take_down_wall(current, *p);
+				self.map[p.x][p.y].filled = true;
+				stack.push_front(*p);
 			}
 		}
+	}
+
+	fn take_down_wall(&mut self, p1: Point, p2: Point) {
+		let xdiff = p1.x as isize - p2.x as isize;
+		let ydiff = p1.y as isize - p2.y as isize;
+
+		// Check if they are neighbors
+		if xdiff.abs() + ydiff.abs() > 1 {
+			return;
+		}
+		if xdiff > 1 || xdiff < -1 {
+			return;
+		}
+		if ydiff > 1 || ydiff < -1 {
+			return;
+		}
+
+		if xdiff > 0 {
+			self.map[p1.x][p1.y].remove_wall(Dir::W);
+			self.map[p2.x][p2.y].remove_wall(Dir::W.opposite());
+		} else if xdiff < 0 {
+			self.map[p1.x][p1.y].remove_wall(Dir::E);
+			self.map[p2.x][p2.y].remove_wall(Dir::E.opposite());
+		} else if ydiff > 0 {
+			self.map[p1.x][p1.y].remove_wall(Dir::N);
+			self.map[p2.x][p2.y].remove_wall(Dir::N.opposite());
+		} else if ydiff < 0 {
+			self.map[p1.x][p1.y].remove_wall(Dir::S);
+			self.map[p2.x][p2.y].remove_wall(Dir::S.opposite());
+		}
+	}
+
+	fn unvisited_neighbor(&self, p: Point) -> Vec<Point> {
+		let mut dir: Vec<Point> = Vec::with_capacity(4);
+
+		if p.x > 0 && !self.map[p.x - 1][p.y].filled {
+			dir.push(Point::new(p.x - 1, p.y));
+		}
+		if p.x < (self.width - 1) && !self.map[p.x + 1][p.y].filled {
+			dir.push(Point::new(p.x + 1, p.y));
+		}
+		if p.y > 0 && !self.map[p.x][p.y - 1].filled {
+			dir.push(Point::new(p.x, p.y - 1));
+		}
+		if p.y < (self.height - 1) && !self.map[p.x][p.y + 1].filled {
+			dir.push(Point::new(p.x, p.y + 1));
+		}
+
+		dir
 	}
 
 	pub fn to_svg_file(&self, path: &str, current: Point, astar: &Vec<Point>) {

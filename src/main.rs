@@ -41,6 +41,8 @@ fn main() {
 
     let mut m = Maze::new(width, height, step);
     m.generate(Point::new(0, 0));
+
+    m.trace = false;
     m.to_svg_file("maze.svg", Point::new(0, 0), &Vec::new());
     if let Some(n) = m.a_star(Point::new(0, 0), Point::new(width - 1, height - 1)) {
         m.to_svg_file("solved_maze.svg", Point::new(0, 0), &n);
